@@ -86,12 +86,7 @@ export function register(server: McpServer): void {
               for (var key in ARGS.parameters) {
                   if (!ARGS.parameters.hasOwnProperty(key)) { continue; }
                   var prop = AEMCP.prop(fx, key);
-                  var value = ARGS.parameters[key];
-                  if (prop.propertyValueType === PropertyValueType.COLOR && !(value instanceof Array)) {
-                      value = AEMCP.color(value);
-                      value.push(1);
-                  }
-                  prop.setValue(value);
+                  prop.setValue(AEMCP.propValue(prop, ARGS.parameters[key]));
                   applied[prop.name] = AEMCP.value(prop);
               }
           }

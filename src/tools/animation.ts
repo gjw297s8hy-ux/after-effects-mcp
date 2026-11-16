@@ -112,12 +112,7 @@ export function register(server: McpServer): void {
           var layer = AEMCP.layer(comp, ARGS.layer);
           var prop = AEMCP.prop(layer, ARGS.property);
 
-          var v = ARGS.value;
-          if (prop.propertyValueType === PropertyValueType.COLOR && !(v instanceof Array)) {
-              v = AEMCP.color(v);
-              v.push(1);
-          }
-          prop.setValue(v);
+          prop.setValue(AEMCP.propValue(prop, ARGS.value));
 
           return { layer: layer.name, property: prop.name, value: AEMCP.value(prop) };
           `,

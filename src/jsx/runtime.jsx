@@ -570,6 +570,31 @@ var AEMCP = (function () {
     };
 
 
+    /*
+     * Normalises a value about to be written to a property. Colour properties
+     * want [r, g, b, a] in 0-1, but callers reasonably send "#rrggbb", [r, g, b]
+     * or 0-255 channels: setValue rejects a 3-element colour outright and does
+     * not rescale 0-255. Every other property passes through untouched.
+     */
+    api.propValue = function (prop, v) {
+        if (prop.propertyValueType !== PropertyValueType.COLOR) { return v; }
+        if (!(v instanceof Array)) {
+            var rgb = api.color(v);
+            rgb.push(1);
+            return rgb;
+        }
+        var max = 0;
+        for (var i = 0; i < v.length; i++) { if (v[i] > max) { max = v[i]; } }
+        var scale = max > 1.0001 ? 255 : 1;
+        return [
+            (v[0] || 0) / scale,
+            (v[1] || 0) / scale,
+            (v[2] || 0) / scale,
+            v.length > 3 ? v[3] / scale : 1
+        ];
+    };
+
+
     /* -------------------------------------------------------------- items  */
 
     api.findItemByName = function (name) {
@@ -702,11 +727,7 @@ var AEMCP = (function () {
         var indices = [];
         for (var i = 0; i < keys.length; i++) {
             var time = api.time(comp, keys[i].time);
-            var value = keys[i].value;
-            if (prop.propertyValueType === PropertyValueType.COLOR && !(value instanceof Array)) {
-                value = api.color(value);
-                value.push(1);
-            }
+            var value = api.propValue(prop, keys[i].value);
             prop.setValueAtTime(time, value);
             indices.push(prop.nearestKeyIndex(time));
         }
