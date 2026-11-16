@@ -259,6 +259,17 @@ async function runJsxExclusive<T>(body: string, options: RunOptions): Promise<T>
   }
 }
 
+const PARTIAL_GRACE_MS = 2_000;
+
+function isCompleteJson(text: string): boolean {
+  try {
+    JSON.parse(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Waits for the script's result file.
  *
@@ -273,14 +284,33 @@ async function waitForResult(path: string, timeoutMs: number): Promise<string | 
   const deadline = Date.now() + timeoutMs;
   let delay = 20;
 
+  let last: string | null = null;
+  let partialSince = 0;
+
   for (;;) {
     if (existsSync(path)) {
-      const text = readFileSync(path, "utf8");
+      let text = "";
+      try {
+        text = readFileSync(path, "utf8");
+      } catch {
+        // Windows: AE can still hold the file open for writing. Try again.
+      }
       // The writer truncates before writing, so an empty file means "still
-      // being written" rather than "finished with nothing to say".
-      if (text.length > 0) { return text; }
+      // being written" rather than "finished with nothing to say". On Windows
+      // the read can also land mid-write and see a truncated payload, so only
+      // accept text that parses; a partial read is retried, not reported.
+      if (text.length > 0) {
+        if (isCompleteJson(text)) { return text; }
+        last = text;
+        if (partialSince === 0) { partialSince = Date.now(); }
+        // A complete write takes milliseconds. Text that still won't parse
+        // after this long is malformed, not in flight: report it now rather
+        // than holding the queue for the rest of the timeout.
+        if (Date.now() - partialSince > PARTIAL_GRACE_MS) { return text; }
+      }
     }
-    if (Date.now() >= deadline) { return null; }
+    // Hand back whatever was seen last so the caller can report it verbatim.
+    if (Date.now() >= deadline) { return last; }
 
     await sleep(delay);
     delay = Math.min(delay * 2, 250);
