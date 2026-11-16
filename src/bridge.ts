@@ -141,7 +141,7 @@ async function runJsxExclusive<T>(body: string, options: RunOptions): Promise<T>
   const resultPath = join(dir, "result.json");
 
   const inner =
-    undo === false ? "__main()" : `AEMCP.undoGroup(${JSON.stringify(undo)}, __main)`;
+    undo === false ? "__main()" : `AEMCP.undoGroup(${jsonLiteral(undo)}, __main)`;
 
   const preamble = [
     runtime(),
